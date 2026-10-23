@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Firewall Fixes: find why the firewall dropped it</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark;--bg:#000;--card:rgba(24,8,36,.62);--tx:#fff;--tx2:#b9a9c9;--bd:rgba(255,80,130,.28);--acc:#ff4d7a;--code:#0b0412;--red-bg:rgba(255,45,85,.16);--red-tx:#ffb8c9;--grn-bg:rgba(60,255,170,.12);--grn-tx:#a6ffd9;--amb-bg:rgba(255,184,64,.13);--amb-tx:#ffd596;--grad:linear-gradient(100deg,#ff3355,#c02dff 62%,#5b2bff);--serif:'Instrument Serif','Times New Roman',Times,serif}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:radial-gradient(70% 45% at 50% 0,rgba(255,40,90,.28),transparent 70%),radial-gradient(50% 40% at 90% 18%,rgba(110,40,255,.30),transparent 70%),#000;background-repeat:no-repeat;color:var(--tx);font:16px/1.6 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px max(16px,env(safe-area-inset-right,0px)) 20px max(16px,env(safe-area-inset-left,0px));overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+.w{max-width:720px;margin:0 auto;position:relative}
+.plus{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--tx);margin:0 0 10px;opacity:.9}
+.hero{padding:34px 0 26px}.hero .btn{margin:0 6px 8px 0}
+.hero h1{font:400 clamp(58px,17vw,112px)/.95 var(--serif);margin:0 0 18px;letter-spacing:-.01em;text-shadow:0 0 38px rgba(255,51,102,.55),0 0 90px rgba(120,40,255,.45)}
+.lead{font:400 clamp(24px,5.4vw,34px)/1.2 var(--serif);margin:0 0 12px}
+.lead em{font-style:italic;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:2px}
+.hero p.sub{color:var(--tx2);margin:0 0 20px;max-width:560px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 18px;margin-bottom:14px;backdrop-filter:blur(8px);box-shadow:0 0 40px rgba(160,40,255,.08)}
+a.btn,button.p{display:inline-block;background:var(--grad);color:#fff;text-decoration:none;font:600 14px Inter,sans-serif;border:0;border-radius:999px;padding:12px 22px;min-height:44px;line-height:1.2;text-align:center;box-shadow:0 0 26px rgba(255,51,102,.42);cursor:pointer}
+a.btn.o{background:transparent;border:1px solid var(--bd);box-shadow:none;color:var(--tx)}
+button{font:500 13px Inter,sans-serif;background:transparent;color:var(--tx);border:1px solid var(--bd);border-radius:999px;padding:10px 14px;min-height:44px;cursor:pointer;touch-action:manipulation}
+button:active,a.btn.o:active{border-color:var(--acc)}
+@media (hover:hover){button:hover,a.btn.o:hover{border-color:var(--acc)}}
+button.p{padding:10px 22px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.row.samples{margin-top:8px}
+label{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx2);display:block;margin-bottom:8px}
+textarea{width:100%;min-height:170px;background:var(--code);color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:12px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;resize:vertical;-webkit-appearance:none;appearance:none}
+textarea:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px rgba(255,77,122,.18)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{max-width:100%;overflow-wrap:anywhere;font-size:12px;background:rgba(255,255,255,.08);border-radius:999px;padding:3px 10px;color:var(--tx2)}
+.v{border-radius:10px;padding:12px 14px;margin-bottom:12px;border:1px solid transparent}
+.v b{display:block;font:400 22px/1.2 var(--serif)}.v span{font-size:14px}
+.bad{background:var(--red-bg);color:var(--red-tx);border-color:rgba(255,45,85,.35)}.ok{background:var(--grn-bg);color:var(--grn-tx);border-color:rgba(60,255,170,.3)}.warn{background:var(--amb-bg);color:var(--amb-tx);border-color:rgba(255,184,64,.3)}
+h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--tx2);margin:16px 0 6px}
+.sec{margin:46px 0 0}.sec h2{font:400 clamp(32px,7vw,44px)/1.05 var(--serif);letter-spacing:0;text-transform:none;color:var(--tx);margin:0 0 14px}
+#try{font:400 clamp(32px,7vw,44px)/1.05 var(--serif);letter-spacing:0;text-transform:none;color:var(--tx);margin:0 0 14px}
+ol,ul{margin:0;padding-left:20px;font-size:14px}li{margin-bottom:6px;overflow-wrap:break-word}.card,.v{overflow-wrap:break-word}
+pre{-webkit-overflow-scrolling:touch;max-width:100%;background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:0;font:12px/1.6 ui-monospace,Menlo,Consolas,monospace;overflow-x:auto;white-space:pre}
+code{color:#ff8fae}
+details{font-size:14px}summary{cursor:pointer;color:#ff8fae;padding:6px 0;min-height:32px}
+.n{font-size:12px;color:var(--tx2)}
+.grid{display:grid;gap:12px}.grid .card{margin:0;font-size:14px}.grid b{display:block;font:400 22px var(--serif);margin-bottom:2px}.grid span{color:var(--tx2)}
+.rm{font-size:15px;color:var(--tx2)}.rm li{margin-bottom:8px}.rm b{color:var(--tx);font-weight:600}
+footer{margin:48px 0 14px;font-size:12px;color:var(--tx2);border-top:1px solid var(--bd);padding-top:16px}
+/* Phones */
+@media (max-width:600px){
+body{padding-top:14px;padding-bottom:14px}
+.hero{padding:22px 0 18px}
+.hero h1{font-size:clamp(48px,16vw,72px)}
+.hero .btn{display:block;width:100%;margin:0 0 10px}
+.plus{font-size:11px;letter-spacing:.16em}
+.card{padding:14px;border-radius:12px}
+textarea{font-size:16px;min-height:150px}
+.row.main button{flex:1 1 0}
+.row.samples{display:grid;grid-template-columns:1fr 1fr}
+.row.samples button{width:100%;padding:10px 8px;font-size:12.5px}
+#cp{width:100%}
+.sec{margin-top:36px}
+pre{font-size:11.5px;padding:10px}
+.v b{font-size:20px}
+}
+@media (max-width:360px){.row.samples{grid-template-columns:1fr}}
+/* Tablets and desktop */
+@media (min-width:760px){
+body{padding-top:32px;padding-bottom:32px}
+.w{max-width:880px}
+.hero{padding:56px 0 40px}
+.card{padding:20px 24px}
+textarea{min-height:220px;font-size:13px}
+.grid{grid-template-columns:1fr 1fr}
+.sec{margin-top:64px}
+.hero p.sub{font-size:17px;max-width:620px}
+ol,ul{font-size:15px}
+pre{font-size:13px}
+.v span{font-size:15px}
+}
+@media (min-width:1100px){.w{max-width:960px}}
+/* Landscape phones */
+@media (max-height:480px) and (orientation:landscape){.hero{padding:16px 0}}
+</style>
+</head>
+<body>
+<div class="w">
+<div class="hero"><p class="plus">+++ FortiGate · SonicWall +++</p>
+<h1>Firewall Fixes.</h1>
+<p class="lead">Find out why the firewall dropped it, in <em>minutes</em>, not hours.</p>
+<p class="sub">Paste your firewall’s drop output: FortiGate <code>diagnose debug flow</code> or SonicWall Packet Monitor. It detects the vendor, gives the likely cause, and tells you what to check next. Built for engineers on a live fault.</p>
+<a class="btn" href="#try">Try it now</a> <a class="btn o" href="#feedback">Tell me what’s missing</a></div>
+<p class="plus" style="margin-top:34px">+++ Live tool +++</p>
+<h2 id="try">Paste. Diagnose.</h2>
+
+<div class="card">
+<details>
+<summary>How to capture the output (FortiGate and SonicWall)</summary>
+<pre>diagnose debug reset
+diagnose debug flow filter addr SOURCE_IP
+diagnose debug flow show function-name enable
+diagnose debug flow trace start 20
+diagnose debug enable
+(generate the traffic, then copy the output)
+diagnose debug disable
+diagnose debug reset</pre>
+<p class="n" style="margin:10px 0 0"><b>SonicWall:</b> run Packet Monitor, reproduce the traffic, and paste the dropped-packet lines that contain “Drop Code”. Drop code numbers change between firmware versions, so the tool matches on the description text.</p>
+</details>
+</div>
+
+<div class="card">
+<label for="in">Debug output (vendor is detected automatically)</label>
+<textarea id="in" placeholder="id=20085 trace_id=1 msg=&quot;vd-root:0 received a packet(proto=6, 10.0.1.25:51234-&gt;8.8.8.8:443) from port3.&quot;"></textarea>
+<div class="row main"><button class="p" id="go">Analyse</button><button id="clr">Clear</button></div>
+<p class="n" style="margin:14px 0 0">Or try an example:</p>
+<div class="row samples">
+<button id="s1">FortiGate: no policy</button>
+<button id="s2">FortiGate: allowed</button>
+<button id="s3">FortiGate: RPF drop</button>
+<button id="s4">SonicWall: policy drop</button>
+<button id="s5">SonicWall: late ACK</button>
+<button id="s6">SonicWall: bounce</button>
+</div>
+<p class="n" style="margin:10px 0 0">Remove public IPs and client names before pasting anywhere other than this page.</p>
+</div>
+
+<div id="out"></div>
+
+<div class="sec"><p class="plus">+++ Trust +++</p><h2>Safe on real incidents.</h2><div class="grid">
+<div class="card"><b>Nothing leaves your browser</b><span>The analysis runs on your device. No upload, no account, no server that sees your output.</span></div>
+<div class="card"><b>Sanitise first anyway</b><span>Swap public IPs and client names before pasting anywhere you don’t control. That is the habit this project teaches.</span></div></div></div>
+
+<div class="sec"><p class="plus">+++ Coverage +++</p><h2>What it catches today.</h2><div class="card"><b style="font:400 22px var(--serif)">FortiGate</b><ul>
+<li>No matching policy, explicit deny, reverse path check</li><li>Replies with no session, local-in blocks, IPsec selectors</li><li>Allowed traffic that still fails</li></ul>
+<b style="font:400 22px var(--serif);display:block;margin-top:14px">SonicWall</b><ul>
+<li>Policy drop, bounce on same link, Cache Add Cleanup</li><li>Reverse path check, flood protection</li></ul>
+<p class="n" style="margin-top:10px">Early version. Anything it does not know says so instead of guessing.</p></div></div>
+
+<div class="sec"><p class="plus">+++ Roadmap +++</p><h2>Where this is going.</h2><ul class="rm">
+<li><b>Now:</b> FortiGate and SonicWall drop analysis</li><li><b>Next:</b> a library of real, verified fixes you can search</li>
+<li><b>Later:</b> Sophos and more vendors, health-check checklists, team features</li></ul></div>
+
+<div class="sec" id="feedback"><p class="plus">+++ Feedback +++</p><h2>Help shape it.</h2><div class="card"><p style="margin:0 0 12px;font-size:14px">Working firewall engineer? Send me a sanitised debug output this tool got wrong, or the drop you wish it caught.</p>
+<a class="btn" href="mailto:YOUR_EMAIL@example.com?subject=Firewall%20Fixes%20feedback">Send feedback</a></div></div>
+
+<footer>Firewall Fixes is an independent project, not affiliated with or endorsed by Fortinet or SonicWall. FortiGate and SonicWall are trademarks of their respective owners.</footer>
+</div>
+
+<script>
+var SAMPLES={
+s1:'id=20085 trace_id=14 func=print_pkt_detail line=5870 msg="vd-root:0 received a packet(proto=6, 10.0.1.25:51234->8.8.8.8:443) from port3."\nid=20085 trace_id=14 func=vf_ip_route_input_common line=2605 msg="find a route: flag=00000000 gw-203.0.113.1 via wan1"\nid=20085 trace_id=14 func=fw_forward_handler line=815 msg="Denied by forward policy check (policy 0)"',
+s2:'id=20085 trace_id=3 msg="vd-root:0 received a packet(proto=6, 10.0.1.30:50100->198.51.100.7:443) from port3."\nid=20085 trace_id=3 msg="find a route: flag=00000000 gw-203.0.113.1 via wan1"\nid=20085 trace_id=3 msg="Allowed by Policy-5: SNAT"\nid=20085 trace_id=3 msg="SNAT 10.0.1.30->203.0.113.10:50100"',
+s3:'id=20085 trace_id=8 msg="vd-root:0 received a packet(proto=1, 192.0.2.50:1->10.0.1.10:2048) from wan1."\nid=20085 trace_id=8 msg="reverse path check fail, drop"'
+};
+SAMPLES.s4='DROPPED, Drop Code: (Packet dropped - Policy drop), Module Id: 25(network)';
+SAMPLES.s5='DROPPED, Drop Code: (Cache Add Cleanup), Module Id: 25(network)';
+SAMPLES.s6='DROPPED, Drop Code: 734(Packet dropped - drop bounce same link pkt), Module Id: 25(network)';
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var PROTO={'1':'ICMP','6':'TCP','17':'UDP'};
+function analyseForti(t){
+var f={},m;
+m=t.match(/received a packet\(proto=(\d+),\s*([\d.]+):?(\d*)->([\d.]+):?(\d*)\)\s*from\s*([\w.\-\/]+)/i);
+if(m){f.proto=PROTO[m[1]]||('proto '+m[1]);f.src=m[2]+(m[3]?':'+m[3]:'');f.dst=m[4]+(m[5]?':'+m[5]:'');f.inif=m[6];f.srcip=m[2];f.sport=m[3]||'0';f.dstip=m[4];f.dport=m[5]||'0';f.p=m[1];}
+m=t.match(/find a route:[^\n]*?via\s+([\w.\-\/]+)/i);if(m)f.outif=m[1];
+var r=null,L=t.toLowerCase();
+var iprope='diagnose firewall iprope lookup '+(f.srcip||'SRC_IP')+' '+(f.sport||'SPORT')+' '+(f.dstip||'DST_IP')+' '+(f.dport||'DPORT')+' '+(f.p==='1'?'icmp':f.p==='17'?'udp':'tcp')+' '+(f.inif||'INCOMING_INTERFACE');
+if((m=t.match(/denied by forward policy check \(policy (\d+)\)/i))){
+ if(m[1]==='0'){r={k:'bad',t:'Dropped: no matching firewall policy',d:'The traffic hit the implicit deny (policy 0). Routing is not the problem.',steps:['Is there a policy from '+(f.inif||'the incoming interface')+' to '+(f.outif||'the outgoing interface')+'?','Does its source address include '+(f.srcip||'the source host')+'?','Does its destination and service cover '+(f.dst||'this destination')+'?','Is it above any broader deny policy, and is it enabled?'],cmds:[iprope,'show firewall policy']};}
+ else{r={k:'bad',t:'Dropped: explicitly denied by policy '+m[1],d:'A deny policy matched first. Check whether that is intended, or whether an allow policy needs to sit above it.',steps:['Review policy '+m[1]+' and its position in the list.','Move the intended allow policy above it, or narrow the deny.'],cmds:['show firewall policy '+m[1],iprope]};}
+}
+else if(/reverse path check fail/.test(L)){r={k:'bad',t:'Dropped: reverse path check failed',d:'The FortiGate has no route back to the source '+(f.srcip?'('+f.srcip+') ':'')+'via the interface it arrived on. Usually asymmetric routing or a missing route.',steps:['Check which interface the routing table uses to reach the source.','Add the missing route, or fix the asymmetric path.','Only as a last resort, relax strict source checking.'],cmds:['get router info routing-table details '+(f.srcip||'SRC_IP'),'show system settings | grep strict']};}
+else if(/no session matched/.test(L)){r={k:'warn',t:'Dropped: reply with no matching session',d:'A return packet arrived with no session to match. Often asymmetric routing, an expired session, or traffic that never passed through the firewall outbound.',steps:['Confirm outbound and return traffic use the same FortiGate.','Check the session timeout for this service.'],cmds:['diagnose sys session filter src '+(f.srcip||'SRC_IP'),'diagnose sys session list']};}
+else if(/iprope_in_check\(\) check failed|local-in/.test(L)){r={k:'bad',t:'Dropped: traffic to the FortiGate itself was blocked',d:'A local-in policy or interface access setting blocked traffic aimed at the firewall (admin, VPN, ping).',steps:['Check allowaccess on the receiving interface.','Check for a local-in policy that denies this source.','Check trusted hosts for admin logins.'],cmds:['show firewall local-in-policy','show system interface '+(f.inif||'INTERFACE')]};}
+else if(/no matching ipsec selector/.test(L)){r={k:'bad',t:'Dropped: no matching IPsec selector',d:'Traffic was meant for a VPN but matches no phase 2 selector.',steps:['Compare phase 2 source and destination subnets on both ends.','Confirm the tunnel is up and the route points into it.'],cmds:['diagnose vpn tunnel list','diagnose vpn ike gateway list']};}
+else if((m=t.match(/allowed by policy-(\d+)/i))){r={k:'ok',t:'The FortiGate allowed this traffic (policy '+m[1]+')',d:'The firewall is not dropping it. If it still fails, look at the return path, NAT, the destination host, or security profiles.',steps:['Check the session was created and replies are coming back.','Confirm NAT (SNAT) is what you expect.','Run a packet capture on both interfaces to see where it stops.','Check for UTM or SSL inspection blocks in the logs.'],cmds:['diagnose sys session filter src '+(f.srcip||'SRC_IP'),'diagnose sys session list','diagnose sniffer packet any "host '+(f.dstip||'DST_IP')+'" 4 20']};}
+else if(/gw-0\.0\.0\.0|no route|failed to find/.test(L)){r={k:'warn',t:'Possible routing problem',d:'No usable route was found for the destination. Treat this as a hint, not a confirmed cause.',steps:['Look up the route for the destination.','Check for a default route and its status.'],cmds:['get router info routing-table details '+(f.dstip||'DST_IP'),'get router info routing-table all']};}
+return {f:f,r:r};}
+function mk(k,t,d,steps,cmds){return {k:k,t:t,d:d,steps:steps,cmds:cmds}}
+function analyseSonic(t){
+var f={vendor:'SonicWall'},m,r=null,L=t.toLowerCase();
+m=t.match(/drop code:\s*(\d+)/i);if(m)f.code=m[1];
+if(/policy drop/.test(L)){r=mk('bad','Dropped: policy drop','SonicWall dropped this because no rule, NAT policy or route let it through as it arrived. Check all three, not just the access rule.',['Is there an access rule allowing this source, destination and service between the right zones?','Are the routes correct, with no conflicting routes?','Is a NAT policy missing or wrong for this traffic?','Is the traffic arriving on the same interface the route table expects for that source?'],['Review Access Rules for the source and destination zones','Review NAT Policies for this service','Review the routing table for the source and destination','Set log level to Debug while testing (Device > Log Settings on SonicOS 7, Manage > Log Settings on 6.5)'])}
+else if(/bounce same link/.test(L)){r=mk('warn','Dropped: bounced back on the same link','The firewall saw the same packet it had just sent out that link. This message is misleading: community reports show it can come from a missing NAT policy rather than a loop.',['Check a NAT policy exists for this traffic.','Check the NAT policy Original Service includes this protocol and port.','Check ARP and the next hop on the interface involved.'],['Review NAT Policies, especially the Original Service value','Check ARP entries for the interface','Compare against the packet header in Packet Monitor'])}
+else if(/cache add cleanup/.test(L)){r=mk('warn','Dropped: no active connection (Cache Add Cleanup)','Often legitimate. A late ACK arriving after the connection was closed by FIN or RST is dropped this way. It is only a problem if it happens on live traffic.',['Follow the TCP conversation in Packet Monitor. If the packet arrives after a FIN or RST, ignore it.','If this is VPN traffic, make sure the WAN interface has a public IP. Double NAT can trigger this.','If it persists, try disabling TCP sequence number randomization on the diag page.'],['Packet Monitor: follow the full TCP conversation','Check the WAN interface has a public IP','Diag page: TCP sequence number randomization'])}
+else if(/rpf check failed/.test(L)){r=mk('bad','Dropped: reverse path check failed','The packet arrived on an interface the firewall does not expect for that source. Usually a missing route or asymmetric routing.',['Check which interface the route table uses to reach the source.','Add the missing route, or fix the asymmetric path.'],['Review the routing table for the source address','Check the interface the packet arrived on'])}
+else if(/flood protection/.test(L)){r=mk('warn','Dropped: flood protection triggered','A UDP or ICMP flood threshold was hit. Decide whether the traffic is an attack or a threshold set too low.',['Check the flood protection thresholds for this protocol.','Check whether a legitimate device or service is sending bursts.'],['Review the flood protection settings','Check the source of the burst in Packet Monitor'])}
+return {f:f,r:r}}
+function analyse(t){
+var son=/drop code|module id/i.test(t)&&!/received a packet/i.test(t);
+var a=son?analyseSonic(t):analyseForti(t);
+if(!son&&a.r)a.f.vendor='FortiGate';
+return a}
+function render(a){
+var o=document.getElementById('out');setTimeout(function(){try{o.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'nearest'})}catch(e){}},50);
+if(!a.r){o.innerHTML='<div class="card"><div class="v warn"><b>No known pattern found</b><span>This version only recognises a few common drops. Paste the full output: for FortiGate include the line starting “received a packet”, for SonicWall the line containing “Drop Code”.</span></div></div>';return;}
+var f=a.f,c='';
+['proto','src','dst','inif','outif'].forEach(function(k){});
+if(f.src)c+='<span class="chip">'+esc(f.proto)+'</span><span class="chip">from '+esc(f.src)+'</span><span class="chip">to '+esc(f.dst)+'</span><span class="chip">in: '+esc(f.inif)+'</span>';
+if(f.outif)c+='<span class="chip">out: '+esc(f.outif)+'</span>';
+if(f.vendor)c='<span class="chip">'+esc(f.vendor)+'</span>'+c;if(f.code)c+='<span class="chip">drop code '+esc(f.code)+'</span>';
+var r=a.r;
+o.innerHTML='<div class="card"><div class="chips">'+c+'</div><div class="v '+r.k+'"><b>'+esc(r.t)+'</b><span>'+esc(r.d)+'</span></div><h2>Check next</h2><ol>'+r.steps.map(function(s){return'<li>'+esc(s)+'</li>'}).join('')+'</ol><h2>Run or check</h2><pre id="cmd">'+esc(r.cmds.join('\n'))+'</pre><div class="row"><button id="cp">Copy</button></div></div>';
+document.getElementById('cp').onclick=function(){var b=this,t=r.cmds.join('\n');(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='Copied'}).catch(function(){var s=window.getSelection(),g=document.createRange();g.selectNodeContents(document.getElementById('cmd'));s.removeAllRanges();s.addRange(g);b.textContent='Selected, press copy'})};
+}
+var i=document.getElementById('in');
+document.getElementById('go').onclick=function(){if(!i.value.trim()){document.getElementById('out').innerHTML='<div class="card"><div class="v warn"><b>Paste some output first</b></div></div>';return}render(analyse(i.value))};
+['s1','s2','s3','s4','s5','s6'].forEach(function(k){document.getElementById(k).onclick=function(){i.value=SAMPLES[k];render(analyse(i.value))}});
+document.getElementById('clr').onclick=function(){i.value='';document.getElementById('out').innerHTML=''};
+</script>
+</body>
+</html>
